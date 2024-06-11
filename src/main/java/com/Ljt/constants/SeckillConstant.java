@@ -9,4 +9,5 @@ public class SeckillConstant {
 
     public static final String REPEATE_ORDER = "不允许重复下单";
 
+    public static final String SECKILL_LOCK = "seckill_lock:";
 }

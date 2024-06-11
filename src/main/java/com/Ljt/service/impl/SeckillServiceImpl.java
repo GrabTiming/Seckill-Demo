@@ -11,13 +11,16 @@ import com.Ljt.service.SeckillService;
 import com.Ljt.util.RedisCache;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import org.aspectj.weaver.ast.Or;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
+import org.redisson.client.RedisClient;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class SeckillServiceImpl implements SeckillService {
@@ -30,6 +33,8 @@ public class SeckillServiceImpl implements SeckillService {
 
     @Autowired
     private RedisCache redisCache;
+    @Autowired
+    private RedissonClient redissonClient;
 
     @Override
     public Result executeSeckill(SeckillDTO seckillDTO) {
@@ -67,13 +72,26 @@ public class SeckillServiceImpl implements SeckillService {
                 .setSql("stock = stock -1"));
         if(!flag) return Result.error(415,"秒杀失败");
 
-        redisCache.setCacheSet(SeckillConstant.SECKILL_SUCCESS_USER+goodsId.toString(),userId);
+        redisCache.setCacheSet(SeckillConstant.SECKILL_SUCCESS_USER+goodsId,userId);
         //创建订单
-        synchronized (userId.toString().intern()){
-            SeckillService proxy = (SeckillService) AopContext.currentProxy();
-            return proxy.createOrder(userId,goodsId);
-        }
+        RLock lock = redissonClient.getLock(SeckillConstant.SECKILL_LOCK+ userId);
+        boolean isLock = false;
+        try {
+            isLock = lock.tryLock(3, TimeUnit.SECONDS);
+            if(isLock){
+                try{
 
+                    SeckillService proxy = (SeckillService) AopContext.currentProxy();
+                    return proxy.createOrder(userId,goodsId);
+
+                }finally {
+                    lock.unlock();
+                }
+            }
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        return Result.error(416,"秒杀失败");
         //return Result.ok("秒杀成功，请在10分钟内支付订单",null);
     }
 
