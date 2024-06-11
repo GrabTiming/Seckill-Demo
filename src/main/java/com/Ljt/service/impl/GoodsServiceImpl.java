@@ -6,6 +6,8 @@ import com.Ljt.entity.Goods;
 import com.Ljt.service.GoodsService;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 /**
  * (Goods)表服务实现类
  *
@@ -15,5 +17,13 @@ import org.springframework.stereotype.Service;
 @Service("goodsService")
 public class GoodsServiceImpl extends ServiceImpl<GoodsMapper, Goods> implements GoodsService {
 
+
+
+    @Override
+    public List<Goods> getList() {
+
+        return this.baseMapper.selectList(null);
+
+    }
 }
 

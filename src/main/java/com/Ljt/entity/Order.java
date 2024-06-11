@@ -3,6 +3,8 @@ package com.Ljt.entity;
 import java.util.Date;
 
 import java.io.Serializable;
+
+import com.baomidou.mybatisplus.annotation.IdType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -17,10 +19,10 @@ import com.baomidou.mybatisplus.annotation.TableName;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@TableName("order")
+@TableName("seckill_order")
 public class Order  {
-    
-    @TableId
+
+    @TableId(type = IdType.AUTO)
     private Long id;
 
     private Long userId;

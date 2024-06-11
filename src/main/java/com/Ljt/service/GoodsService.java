@@ -3,6 +3,8 @@ package com.Ljt.service;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.Ljt.entity.Goods;
 
+import java.util.List;
+
 /**
  * (Goods)表服务接口
  *
@@ -11,5 +13,6 @@ import com.Ljt.entity.Goods;
  */
 public interface GoodsService extends IService<Goods> {
 
+    List<Goods> getList();
 }
 

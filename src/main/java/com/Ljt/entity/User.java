@@ -2,6 +2,8 @@ package com.Ljt.entity;
 
 
 import java.io.Serializable;
+
+import com.baomidou.mybatisplus.annotation.IdType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -18,8 +20,8 @@ import com.baomidou.mybatisplus.annotation.TableName;
 @NoArgsConstructor
 @TableName("user")
 public class User  {
-    
-    @TableId
+
+    @TableId(type = IdType.AUTO)
     private Long id;
 
     private String username;

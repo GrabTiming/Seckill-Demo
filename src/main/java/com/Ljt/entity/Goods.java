@@ -2,6 +2,9 @@ package com.Ljt.entity;
 
 
 import java.io.Serializable;
+import java.util.Date;
+
+import com.baomidou.mybatisplus.annotation.IdType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -19,7 +22,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 @TableName("goods")
 public class Goods  {
     
-    @TableId
+    @TableId(type = IdType.AUTO)
     private Long id;
 
     private String goodsName;
@@ -27,6 +30,10 @@ public class Goods  {
     private Double price;
     
     private Integer stock;
+
+    private Date startTime;
+
+    private Date endTime;
     
     
 }
