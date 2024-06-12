@@ -5,15 +5,19 @@ import com.Ljt.dto.SeckillDTO;
 import com.Ljt.entity.Goods;
 import com.Ljt.entity.Order;
 import com.Ljt.entity.Result;
+import com.Ljt.mq.message.SeckillMessage;
+import com.Ljt.mq.producer.SeckillProducer;
 import com.Ljt.service.GoodsService;
 import com.Ljt.service.OrderService;
 import com.Ljt.service.SeckillService;
+import com.Ljt.util.LockUtil;
 import com.Ljt.util.RedisCache;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
-import org.redisson.client.RedisClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -22,8 +26,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @Service
 public class SeckillServiceImpl implements SeckillService {
+
+    public static final Logger logger = LoggerFactory.getLogger(SeckillServiceImpl.class);
 
     @Autowired
     private GoodsService goodsService;
@@ -36,7 +43,10 @@ public class SeckillServiceImpl implements SeckillService {
     @Autowired
     private RedissonClient redissonClient;
 
-    @Transactional
+    @Autowired
+    private SeckillProducer producer;
+
+
     @Override
     public Result executeSeckill(SeckillDTO seckillDTO) {
 
@@ -65,10 +75,22 @@ public class SeckillServiceImpl implements SeckillService {
         //等启动好RocketMQ后回来
         //跑通RocketMQ
 
+        //发送消息
+        SeckillMessage seckillMessage = new SeckillMessage(userId, goodsId);
+        producer.sendMessage(seckillMessage);
+
+        return Result.ok(null);
+
+    }
+
+    @Transactional
+    public Result executeSeckillForCustomer(Long goodsId,Long userId)
+    {
         //尝试 扣减库存 + 创建订单
-        RLock lock = redissonClient.getLock(SeckillConstant.SECKILL_LOCK+ userId);
+        RLock lock = redissonClient.getLock(LockUtil.getSeckillLock(goodsId,userId));
         boolean isLock = false;
         try {
+            //3秒都给多了，秒杀3秒钟都没了。。。
             isLock = lock.tryLock(3, TimeUnit.SECONDS);
             if(isLock){
                 try{
@@ -83,8 +105,7 @@ public class SeckillServiceImpl implements SeckillService {
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
-        return Result.error(416,"秒杀失败");
-        //return Result.ok("秒杀成功，请在10分钟内支付订单",null);
+        return Result.ok(null);
     }
 
     @Transactional
@@ -98,6 +119,7 @@ public class SeckillServiceImpl implements SeckillService {
 //        if(count>=1) {
 //            throw new RuntimeException("已经下单");
 //        }
+        //改用redis判断是否下过单
         if(redisCache.containsCacheSet(SeckillConstant.SECKILL_SUCCESS_USER+goodsId,userId)){
             throw new RuntimeException(SeckillConstant.REPEATE_ORDER);
         }
@@ -107,15 +129,22 @@ public class SeckillServiceImpl implements SeckillService {
                 .eq(Goods::getId,goodsId)
                 .gt(Goods::getStock,0)
                 .setSql("stock = stock -1"));
-        if(!flag) return Result.error(415,"秒杀失败");
+        if(!flag)
+        {
+            logger.info("秒杀失败");
+            return Result.error(415,"秒杀失败");
+        }
 
         redisCache.setCacheSet(SeckillConstant.SECKILL_SUCCESS_USER+goodsId,userId);
+
+        //创建订单
         Order newOrder = new Order();
         newOrder.setUserId(userId);
         newOrder.setGoodsId(goodsId);
         newOrder.setStatus(0);
         newOrder.setCreateTime(new Date());
         orderService.save(newOrder);
+        logger.info("秒杀成功");
         return Result.ok("秒杀成功,请在10分钟内支付订单",null);
     }
 

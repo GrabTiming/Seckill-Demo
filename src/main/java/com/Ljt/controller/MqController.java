@@ -1,7 +1,7 @@
 package com.Ljt.controller;
 
 import com.Ljt.entity.Result;
-import com.Ljt.mq.SeckillProducer;
+import com.Ljt.mq.producer.SeckillProducer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

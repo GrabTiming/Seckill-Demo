@@ -9,6 +9,8 @@ public interface SeckillService {
     Result executeSeckill(SeckillDTO seckillDTO);
 
 
+    Result executeSeckillForCustomer(Long goodsId,Long userId);
+
     Result createOrder(Long userId,Long goodsId);
 
 }

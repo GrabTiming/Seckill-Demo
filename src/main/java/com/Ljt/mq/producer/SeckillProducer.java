@@ -1,12 +1,17 @@
-package com.Ljt.mq;
+package com.Ljt.mq.producer;
 
-import org.apache.rocketmq.client.producer.SendResult;
+import com.Ljt.mq.message.SeckillMessage;
 
+
+import com.alibaba.fastjson2.JSON;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
+
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.messaging.Message;
-import org.springframework.messaging.support.MessageBuilder;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+
+
 
 @Component
 public class SeckillProducer {
@@ -14,13 +19,22 @@ public class SeckillProducer {
     @Autowired
     private RocketMQTemplate rocketMQTemplate;
     //发送普通消息的示例
+
+    @Value("${seckill.topic}")
+    private String topic ;
+
     public void sendMessage(String topic,String msg){
         System.out.println("正则发送消息");
         this.rocketMQTemplate.convertAndSend(topic,msg);
     }
 
+    public void sendMessage(SeckillMessage message)
+    {
+        this.rocketMQTemplate.convertAndSend(topic, JSON.toJSON(message));
+    }
+
     //发送事务消息的示例
-    public void sendMessageInTransaction(String topic,String msg) throws InterruptedException {
+//    public void sendMessageInTransaction(String topic,String msg) throws InterruptedException {
 //        String[] tags = new String[] {"TagA", "TagB", "TagC", "TagD", "TagE"};
 //        for (int i = 0; i < 10; i++) {
 //
@@ -31,6 +45,6 @@ public class SeckillProducer {
 //
 //            Thread.sleep(10);
 //        }
-    }
+//    }
 
 }

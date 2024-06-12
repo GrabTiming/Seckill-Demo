@@ -14,5 +14,8 @@ import java.util.List;
 public interface GoodsService extends IService<Goods> {
 
     List<Goods> getList();
+
+    //TODO 补一个缓存预热
+
 }
 
