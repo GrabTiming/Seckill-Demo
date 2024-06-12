@@ -36,6 +36,7 @@ public class SeckillServiceImpl implements SeckillService {
     @Autowired
     private RedissonClient redissonClient;
 
+    @Transactional
     @Override
     public Result executeSeckill(SeckillDTO seckillDTO) {
 
@@ -64,16 +65,7 @@ public class SeckillServiceImpl implements SeckillService {
         //等启动好RocketMQ后回来
         //跑通RocketMQ
 
-
-        //3. 尝试扣减库存
-        boolean flag = goodsService.update(new LambdaUpdateWrapper<Goods>()
-                .eq(Goods::getId,goodsId)
-                .gt(Goods::getStock,0)
-                .setSql("stock = stock -1"));
-        if(!flag) return Result.error(415,"秒杀失败");
-
-        redisCache.setCacheSet(SeckillConstant.SECKILL_SUCCESS_USER+goodsId,userId);
-        //创建订单
+        //尝试 扣减库存 + 创建订单
         RLock lock = redissonClient.getLock(SeckillConstant.SECKILL_LOCK+ userId);
         boolean isLock = false;
         try {
@@ -98,12 +90,26 @@ public class SeckillServiceImpl implements SeckillService {
     @Transactional
     public Result createOrder(Long userId,Long goodsId)
     {
-        Long count = orderService.count(new LambdaQueryWrapper< Order >()
-                .eq(Order::getUserId,userId)
-                .eq(Order::getGoodsId,goodsId));
-        if(count>=1) {
-            return Result.error(414, SeckillConstant.REPEATE_ORDER);
+
+        //判断是否已经下过单
+//        Long count = orderService.count(new LambdaQueryWrapper< Order >()
+//                .eq(Order::getUserId,userId)
+//                .eq(Order::getGoodsId,goodsId));
+//        if(count>=1) {
+//            throw new RuntimeException("已经下单");
+//        }
+        if(redisCache.containsCacheSet(SeckillConstant.SECKILL_SUCCESS_USER+goodsId,userId)){
+            throw new RuntimeException(SeckillConstant.REPEATE_ORDER);
         }
+
+        //3. 尝试扣减库存
+        boolean flag = goodsService.update(new LambdaUpdateWrapper<Goods>()
+                .eq(Goods::getId,goodsId)
+                .gt(Goods::getStock,0)
+                .setSql("stock = stock -1"));
+        if(!flag) return Result.error(415,"秒杀失败");
+
+        redisCache.setCacheSet(SeckillConstant.SECKILL_SUCCESS_USER+goodsId,userId);
         Order newOrder = new Order();
         newOrder.setUserId(userId);
         newOrder.setGoodsId(goodsId);
