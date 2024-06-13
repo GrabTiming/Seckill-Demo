@@ -28,7 +28,7 @@ rocketmq:
     group: seckillProducerGroup
 
 seckill:
-  topic: "SeckillTopic1"
+  topic: "seckillTopic"
 
 
 logging:

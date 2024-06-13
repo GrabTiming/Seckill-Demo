@@ -13,4 +13,5 @@ public interface SeckillService {
 
     Result createOrder(Long userId,Long goodsId);
 
+    Result executeOrderCancel(Long goodsId, Long userId);
 }

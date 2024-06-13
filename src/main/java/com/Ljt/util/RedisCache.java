@@ -149,6 +149,11 @@ public class RedisCache
         return count == null ? 0 : count;
     }
 
+    public <T> Long deleteCacheSetValue(final String key,final Object value)
+    {
+        return redisTemplate.opsForSet().remove(key,value);
+    }
+
     /**
      * 获得缓存的set
      *

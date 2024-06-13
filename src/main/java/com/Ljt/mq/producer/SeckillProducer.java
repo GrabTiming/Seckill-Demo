@@ -1,5 +1,6 @@
 package com.Ljt.mq.producer;
 
+import com.Ljt.constants.MqConstant;
 import com.Ljt.mq.message.SeckillMessage;
 
 
@@ -23,6 +24,7 @@ public class SeckillProducer {
     @Value("${seckill.topic}")
     private String topic ;
 
+    //测试 mq是否可以工作
     public void sendMessage(String topic,String msg){
         System.out.println("正则发送消息");
         this.rocketMQTemplate.convertAndSend(topic,msg);
@@ -30,7 +32,7 @@ public class SeckillProducer {
 
     public void sendMessage(SeckillMessage message)
     {
-        this.rocketMQTemplate.convertAndSend(topic, JSON.toJSON(message));
+        this.rocketMQTemplate.convertAndSend(topic+":"+ MqConstant.ORDER_CREATE_TAG, JSON.toJSON(message));
     }
 
     //发送事务消息的示例

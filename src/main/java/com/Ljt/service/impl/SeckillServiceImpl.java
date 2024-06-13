@@ -1,17 +1,21 @@
 package com.Ljt.service.impl;
 
+import com.Ljt.constants.MqConstant;
 import com.Ljt.constants.SeckillConstant;
 import com.Ljt.dto.SeckillDTO;
 import com.Ljt.entity.Goods;
 import com.Ljt.entity.Order;
 import com.Ljt.entity.Result;
+import com.Ljt.mq.message.OrderCancelMessage;
 import com.Ljt.mq.message.SeckillMessage;
+import com.Ljt.mq.producer.OrderCancelProducer;
 import com.Ljt.mq.producer.SeckillProducer;
 import com.Ljt.service.GoodsService;
 import com.Ljt.service.OrderService;
 import com.Ljt.service.SeckillService;
 import com.Ljt.util.LockUtil;
 import com.Ljt.util.RedisCache;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
@@ -45,6 +49,10 @@ public class SeckillServiceImpl implements SeckillService {
 
     @Autowired
     private SeckillProducer producer;
+
+    @Autowired
+    private OrderCancelProducer orderCancelProducer;
+
 
 
     @Override
@@ -137,15 +145,44 @@ public class SeckillServiceImpl implements SeckillService {
 
         redisCache.setCacheSet(SeckillConstant.SECKILL_SUCCESS_USER+goodsId,userId);
 
-        //创建订单
+        //创建订单并保存
         Order newOrder = new Order();
         newOrder.setUserId(userId);
         newOrder.setGoodsId(goodsId);
         newOrder.setStatus(0);
         newOrder.setCreateTime(new Date());
         orderService.save(newOrder);
+        //发送延时消息
+        orderCancelProducer.sendDelayMessage(new OrderCancelMessage(userId,goodsId), MqConstant.DELDAY_LEVEL);
         logger.info("秒杀成功");
         return Result.ok("秒杀成功,请在10分钟内支付订单",null);
+    }
+
+
+    @Override
+    public Result executeOrderCancel(Long goodsId, Long userId) {
+
+        LambdaQueryWrapper<Order> queryWrapper = new LambdaQueryWrapper<>();
+        //删除订单
+        queryWrapper.eq(Order::getUserId,userId)
+                .eq(Order::getGoodsId,goodsId)
+                .eq(Order::getStatus,SeckillConstant.ORDER_UNPAID);
+        int isDelete = orderService.getBaseMapper().delete(queryWrapper);
+
+        if(isDelete>0)
+        {
+            //删除下单标记
+            redisCache.deleteCacheSetValue(SeckillConstant.SECKILL_SUCCESS_USER+goodsId,userId);
+
+            //库存+1
+            boolean flag = goodsService.update(new LambdaUpdateWrapper<Goods>()
+                    .eq(Goods::getId,goodsId)
+                    .gt(Goods::getStock,0)
+                    .setSql("stock = stock +1"));
+
+            return Result.ok("订单超时未支付，已取消订单",null);
+        }
+        return Result.ok(null);
     }
 
 }
